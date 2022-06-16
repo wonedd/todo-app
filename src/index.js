@@ -16,7 +16,6 @@ function verifyIfExistsAccount(req, res, next){
       return res.status(400).json({error: "User not found"})
   }
 
-
   req.user = user;
 
   return next()
@@ -25,23 +24,32 @@ function verifyIfExistsAccount(req, res, next){
 app.post('/account', (req, res) => {
   const { name, username	} = req.body;
 
-  users.push({
+  if (!name || !username) {
+    return res.status(400).json({ error: 'Name and username are required' });
+  }
+
+  if(users.some(user => user.username === username)){
+      return res.status(400).json({ error: 'Username already exists' });
+  }
+  
+  const user = {
     name,
     username,
     id: v4(),
     todos: [] 
-})
-return( 
-  res.status(201).send() && res.send(console.log(users))
-)
+  }
+ 
+  users.push(user)
+
+  
+  return res.status(201).json(user)
+ 
 })
 
 app.use(verifyIfExistsAccount);
 
 app.get('/todos', (req, res) => {
-  const { username } = req.headers; 
-
-  const user = users.find(user => user.username === username);
+  const { user } = req;
 
   return res.json(user.todos);
 })
@@ -49,9 +57,9 @@ app.get('/todos', (req, res) => {
 app.post('/todos', (req, res) => {
   const { title, deadline } = req.body;
 
-  const { username } = req.headers;
+  const { user } = req;
 
-  const user = users.find(user => user.username === username);
+  const { username } = req.headers
 
   const todo = {
     id: v4(),
@@ -64,10 +72,61 @@ app.post('/todos', (req, res) => {
 
   user.todos.push(todo)
 
-  return res.status(201).send() && console.log(user);
+  return res.status(201).json(todo)
+  
+})
 
+app.put('/todos/:id', (req, res) => {
+  const { title, deadline } = req.body;
+
+  const { id } = req.params;
   
+  const { user } = req;
+
+  const todo = user.todos.find(todo => todo.id === id);
+
+  if(!todo){
+      return res.status(400).json({error: "Todo not found"})
+  }
+
+  todo.title = title;
+  todo.deadline = new Date(deadline);
+
+  return res.status(200).json(todo)
+
+})
+
+app.patch('/todos/:id', (req, res) => {
+  const { id } = req.params;
+
+  const { user } = req;
+
+  const todo = user.todos.find(todo => todo.id === id);
+
+  if(!todo){
+      return res.status(400).json({error: "Todo not found"})
+  }
+
+  todo.done = true;
+
+  return res.status(200).json(todo)
   
+})
+
+app.delete('/todos/:id', (req, res) => {
+  const { id } = req.params;
+
+  const { user } = req;
+
+  const todo = user.todos.find(todo => todo.id === id);
+
+  if(!todo){
+      return res.status(400).json({error: "Todo not found"})
+  }
+
+  user.todos.splice(user.todos.indexOf(todo), 1);
+
+  return res.status(204).send()
 })
 
 app.listen(3333)
